@@ -5,7 +5,7 @@ Decisions that bind ACIF, capmon, MOAT and syllago together. `README.md` holds t
 ## Rules
 
 - No mutation testing while the stack's first implementation (syllago v2) is built, which overrides the global rule to mutation-test each stage.
-- Merge a PR without asking once its CI checks pass and both second-opinion rounds are done, with the second round's fixes pushed. This repo runs no CI, so a PR here waits only on the two rounds.
+- Merge a PR you opened without asking once both second-opinion rounds are done and the second round's fixes are pushed. This repo runs no CI, so nothing else gates the merge.
 
 ## Agent skills
 
