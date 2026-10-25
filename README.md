@@ -23,10 +23,10 @@ nothing of their own.
 
 | Concept | Owner | Consequence |
 |---|---|---|
-| Content identity and hash | ACIF (`body_hash`) | MOAT signs `body_hash` rather than its own directory hash, and ACIF's `attestation_hash` gets a defined input |
-| Content-type names | ACIF | capmon, MOAT and syllago use ACIF's kind tokens at their boundaries |
+| Content identity and hash | ACIF (`body_hash`, `metadata_hash`) | MOAT signs ACIF's attestation input digest over both hashes rather than its own directory hash, and ACIF publishes that digest as `attestation_hash` |
+| Content-type names | ACIF | Syllago uses ACIF's kind tokens. capmon and MOAT map their own type names to them |
 | Hook event vocabulary | ACIF | Syllago's own hooks spec (HIF) retires |
-| Install-path schema | ACIF (install-targets) | ACIF's A.2 table becomes a conformance fixture, not the live source |
+| Install-path schema | ACIF (install-targets) | ACIF's A.2 table stays normative until it is reconciled with capmon's rows, then becomes a conformance fixture |
 | Install-path data | capmon | The feed publishes structured paths. Syllago vendors no path tables |
 | Provider identifiers and capabilities | capmon | Syllago's `provider-formats` YAML retires |
 | Content signatures and trust tiers | MOAT | Covers third-party content and the user's own content alike |
@@ -35,21 +35,26 @@ nothing of their own.
 
 ## Seam contracts
 
-**ACIF to MOAT.** One hash. MOAT adopts ACIF's `body_hash`, including its
-canonicalization, so the same skill hashes the same whichever tool it came
-from. This is also what lets MOAT attest hooks and MCP configuration, which it
-cannot do today.
+**ACIF to MOAT.** One signed input. MOAT signs ACIF's attestation input
+digest, which binds `body_hash` and `metadata_hash`, so it covers the
+frontmatter grants that `body_hash` strips. MOAT hashes the fetched bytes as
+they are, with no canonicalization. The same skill still hashes the same
+whichever tool it came from, because syllago signs the ACIF-canonical Library
+copy. The digest is also the route by which MOAT can later attest hooks and
+MCP configuration. MOAT limits the ACIF method to skills, rules, agents and
+commands until then.
 
 **ACIF to capmon.** ACIF defines the install-targets schema. capmon fills it
 from the tools it watches and publishes it in the feed. capmon's prose
 `mechanism` fields stop being the only record of paths. capmon's `conversion`
 vocabulary converges on ACIF render-back's fidelity classes.
 
-**MOAT to authors.** MOAT gains an author-key publisher profile. A
-hardware-backed key signs, and the signature sits beside the registry
-signature as the second attestation of the existing Dual-Attested tier. The
-Rekor entry carries a key fingerprint, not an email address. A stolen push
-token then can't produce content that verifies.
+**MOAT to authors.** MOAT gains an author-key publisher profile. An SSH key,
+an `sk-` security-key type where the author has one, signs. The signature sits
+beside the registry signature as the second attestation of the existing
+Dual-Attested tier. The Rekor entry identifies the author only by a public
+key with no comment, never by an email address. A stolen push token then can't produce content that a machine
+trusting the author's keys installs without asking.
 
 **capmon to syllago.** Syllago consumes the feed and verifies its SLSA
 attestation fail-closed. Each provider adapter carries golden fixtures pinned
@@ -124,9 +129,13 @@ permissions that is never captured back into the repository.
 
 ### Out of scope at launch
 
-Registries, ACIF's registry and publisher layers, sandbox, telemetry, the rule
-splitter, the content analyzer and `share`. They return with the team track.
-Release signing (cosign, checksums, SBOM) ships from day one.
+Third-party registries, ACIF's registry records, packs and projections,
+publishing to registries, sandbox, telemetry, the rule splitter, the content
+analyzer and `share`. They return with the team track. Two parts stay in. The
+user's own sync repository is a MOAT Self-Publisher registry that publishes a
+signed manifest. From ACIF's publisher and registry layers, the skeleton takes
+`publisher_section` observation, `metadata_hash` and the Registry Specification
+§6 digest. Release signing (cosign, checksums, SBOM) ships from day one.
 
 ## Delivery
 
@@ -152,12 +161,17 @@ a change in any project that breaks the stack fails there.
 
 ### Spec work the skeleton needs
 
-- ACIF: settle the two install conflicts the apply engine depends on (hook
-  contributions keyed by event wiring, and a blocking hook that fails open
-  under a degraded render). The other seven are settled as slices reach them.
-- ACIF: define `attestation_hash`'s input.
-- MOAT: adopt ACIF `body_hash`, add the author-key profile, and settle the
-  signer subject format (the spec and the npm sub-spec disagree).
+All of it has landed. [`specs/walking-skeleton.md`](specs/walking-skeleton.md)
+records what each change settled.
+
+- ACIF: settle the two install conflicts the apply engine depends on. Hook
+  contributions are keyed by item, not by event wiring, and a blocking hook is
+  refused when its render would fail open. The other seven are settled as
+  slices reach them.
+- ACIF: define `attestation_hash` as the digest over `body_hash` and
+  `metadata_hash`.
+- MOAT: sign that digest for ACIF items, add the author-key profile, and
+  settle the signer subject format (the spec and the npm sub-spec disagreed).
 - capmon: publish structured install paths against the ACIF schema.
 
 ### Later slices
