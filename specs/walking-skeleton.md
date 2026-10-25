@@ -47,12 +47,12 @@ machine without my confirmation, and syllago says why it stopped.
 3. As an End User, I want added content stored in ACIF form, so that the same item has the same identity whichever tool it came from.
 4. As an End User, I want each Content Item to carry its ACIF `body_hash`, and its `metadata_hash` when it has a `publisher_section` (frontmatter or sidecar values), so that any change to its body or to the tool, model and MCP grants in its frontmatter is detectable.
 5. As an End User, I want adding the same skill twice from two different tools to yield one Library item, so that I don't get duplicates.
-6. As an End User, I want `syllago init <repo-url>` to set up my Library as a git repository I own, so that my config has history and a remote.
+6. As an End User, I want `syllago init <repo-url>` to set up my Library as a GitHub repository I own, where MOAT's Registry Action (a GitHub Actions workflow) can sign it, so that my config has history and a remote.
 7. As an End User, I want to create a security-key signing key (an SSH `sk-` key) once, so that my machines can tell my content apart from anyone else's.
 8. As an End User, I want syllago to refuse to sign with a key that isn't an `sk-` key type unless I pass an explicit flag, so that I don't weaken my own setup by accident.
 9. As a Self-Publisher, I want every Content Item I commit to be signed with my author key, so that a stolen push token can't produce content my machines install without my confirmation.
 10. As a Self-Publisher, I want the signature to cover the ACIF attestation input digest, which binds `body_hash` and `metadata_hash`, so that a signed item's body and its frontmatter grants can't change without breaking the signature.
-11. As a Self-Publisher, I want the transparency-log entry to identify me only by my public key, never by my email address, so that signing doesn't publish my identity.
+11. As a Self-Publisher, I want the author-key transparency-log entry to identify me only by my public key, so that signing never publishes my email address.
 12. As a Self-Publisher, I want to declare which keys are allowed to sign for my repository, so that adding a second security key later is a config change rather than a rewrite.
 13. As an End User, I want to create a loadout that names my skill and my rule and targets Claude Code and Codex, so that one command configures both tools.
 14. As an End User, I want `syllago apply --preview` to show me every file and settings key it would write, so that I can check before anything changes.
@@ -74,23 +74,24 @@ machine without my confirmation, and syllago says why it stopped.
 30. As an End User, I want `--overwrite` to replace a drifted file deliberately, so that I can choose the Library's version when I mean to.
 31. As an End User, I want `syllago push` to commit and push my signed Library changes, so that other machines can get them.
 32. As an End User, I want `syllago bootstrap <repo-url>` on a fresh machine to clone, verify and apply in one command, so that a new machine or container is configured immediately.
-33. As an End User, I want bootstrap to ask me to confirm the allowed signing keys the first time it sees a repository, so that trust starts from my decision (TOFU).
+33. As an End User, I want bootstrap, the first time it sees a repository, to ask me to confirm its allowed signing keys and to pin both that list and the registry's signing profile, so that trust starts from my decision (TOFU).
 34. As an End User, I want `syllago sync` to pull, verify and apply, so that keeping a machine current is one command.
 35. As an End User, I want sync to refuse an item whose signature doesn't verify and name the item and the reason, so that tampered content never reaches my tools.
 36. As an End User, I want sync to refuse an item signed by a key not in my allowed list, so that a stolen push token can't add a signer without my confirmation.
-37. As an End User, I want a change to the allowed-signers list itself to require a signature from a currently allowed key and a higher sequence number, so that an attacker can't add their own key with a plain push or replay an old change to restore a removed key.
-38. As an End User, I want sync to apply nothing when any item fails verification, so that a partly trusted update never lands.
-39. As an End User, I want every command to support `--json`, so that I can script it and check results in CI.
-40. As an End User, I want every error to name what failed, why, and what to do next, so that I can fix problems without reading source code.
-41. As an End User, I want the skeleton to work on Linux, macOS and native Windows, so that every machine I own is covered.
-42. As an End User, I want Windows paths, line endings and file locking handled from the start, so that a Windows machine never produces a different hash for the same content.
-43. As an End User, I want syllago installed as a single static binary with signed checksums, so that I can verify what I'm running.
-44. As a stack maintainer, I want one end-to-end test that runs this whole story against pinned versions of the ACIF suite, capmon feed and MOAT vectors, so that a change in any project that breaks the stack fails in one place.
-45. As a stack maintainer, I want the ACIF crate to pass ACIF's conformance vectors for skills and rules, so that syllago's ACIF is the spec's ACIF.
-46. As a stack maintainer, I want the MOAT author-key profile to ship with its own test vectors, so that any other Conforming Client can implement it.
-47. As a stack maintainer, I want the Claude Code and Codex adapters to carry golden fixtures pinned to a tool version, so that a capmon change shows up as a fixture diff in a pull request.
-48. As a stack maintainer, I want a capmon feed change that alters a path the skeleton uses to fail the end-to-end test until the fixture is regenerated, so that drift is never silent.
-49. As a spec author, I want each spec change the skeleton needs to land through its project's change process before the code that depends on it, so that the specs stay the source of truth.
+37. As an End User, I want sync and bootstrap to refuse any item from my sync repository that isn't Dual-Attested under my author key from the `source_uri` pinned at bootstrap, so that a stolen push token can't add an item that only the Registry Action signed.
+38. As an End User, I want a change to the allowed-signers list itself to require a signature from a currently allowed key and a higher sequence number, so that an attacker can't add their own key with a plain push or replay an old change to restore a removed key.
+39. As an End User, I want sync to apply nothing when any item fails verification, so that a partly trusted update never lands.
+40. As an End User, I want every command to support `--json`, so that I can script it and check results in CI.
+41. As an End User, I want every error to name what failed, why, and what to do next, so that I can fix problems without reading source code.
+42. As an End User, I want the skeleton to work on Linux, macOS and native Windows, so that every machine I own is covered.
+43. As an End User, I want Windows paths, line endings and file locking handled from the start, so that a Windows machine never produces a different hash for the same content.
+44. As an End User, I want syllago installed as a single static binary with signed checksums, so that I can verify what I'm running.
+45. As a stack maintainer, I want one end-to-end test that runs this whole story against pinned versions of the ACIF suite, capmon feed and MOAT vectors, so that a change in any project that breaks the stack fails in one place.
+46. As a stack maintainer, I want the ACIF crate to pass ACIF's conformance vectors for skills and rules, so that syllago's ACIF is the spec's ACIF.
+47. As a stack maintainer, I want the MOAT author-key profile to ship with its own test vectors, so that any other Conforming Client can implement it.
+48. As a stack maintainer, I want the Claude Code and Codex adapters to carry golden fixtures pinned to a tool version, so that a capmon change shows up as a fixture diff in a pull request.
+49. As a stack maintainer, I want a capmon feed change that alters a path the skeleton uses to fail the end-to-end test until the fixture is regenerated, so that drift is never silent.
+50. As a spec author, I want each spec change the skeleton needs to land through its project's change process before the code that depends on it, so that the specs stay the source of truth.
 
 ## Implementation Decisions
 
@@ -103,7 +104,7 @@ machine without my confirmation, and syllago says why it stopped.
 
   ```text
   preimage = "acif-attestation-input-v1\n" BH "\n" (MH or "null") "\n"
-  attestation_hash = sha256 : hex(SHA-256(preimage))
+  attestation_hash = sha256 : lowercase-hex(SHA-256(preimage))
   ```
 
   `BH` and `MH` are `body_hash` and `metadata_hash`, each written as
@@ -117,9 +118,9 @@ machine without my confirmation, and syllago says why it stopped.
   on are resolved before the engine is built:
   - A hook's contributions to a shared file are keyed by item. Uninstalling
     one item leaves another item's identical entries in place.
-  - A blocking hook whose event renders degraded, or whose provider ACIF has
-    not surveyed, is refused at install. An operator can override the refusal
-    for one item and one provider.
+  - A blocking hook whose event renders degraded, or whose provider ACIF
+    records no event names for, is refused at install. An operator can
+    override the refusal for one item and one provider.
 
   Neither touches skills or rules directly, but the ownership record and the
   rollback model are designed against the resolved text.
@@ -144,9 +145,10 @@ machine without my confirmation, and syllago says why it stopped.
     and both list digests.
   - A changed list whose sequence does not increase is refused outright, with
     no confirmation offered.
-  - A first sight, an unsigned change, a switch to keyless signing, or an
-    installed item whose `source_uri` changed needs the End User's
-    confirmation.
+  - A first sight, an unsigned change, or a switch to keyless signing needs
+    the End User's confirmation. So does an update to an installed item whose
+    `source_uri` changed, when a trusted list exists for the recorded
+    `source_uri`.
   - The End User can remove a repository's trusted list. That is the recovery
     path after a key is stolen.
 
@@ -200,15 +202,31 @@ The Rust workspace in the syllago repository, beside the Go code until v1.0:
   and drift detection read only that record.
 - Sync verifies the sync repository's signed manifest before any of its
   items. The repository is the user's own MOAT Self-Publisher registry: it
-  publishes a signed manifest with `self_published: true`, the registry
-  attestation that the author-key signature joins to make an item
-  Dual-Attested. MOAT registry manifests are signed keyless in CI, so the
-  sync repository runs MOAT's Registry Action.
+  publishes a manifest with `self_published: true`. MOAT registry manifests
+  are signed keyless in CI, so the sync repository runs MOAT's Registry
+  Action. The manifest signature proves only the index's integrity. For each
+  item, the Registry Action also writes a per-item Rekor entry
+  (`content[].rekor_log_index`), the registry attestation that the
+  author-key signature joins to make the item Dual-Attested. Sync verifies the
+  manifest bundle, then each item's registry entry and author-key entry.
+- The Registry Action regenerates and re-signs the manifest on a schedule as
+  well as on push, so its `expires` never lapses for a repository with
+  infrequent pushes.
+- Sync and bootstrap refuse any item from the sync repository that is not
+  Dual-Attested under the author-key profile from the `source_uri` pinned at
+  bootstrap. That covers an entry with no `signing_profile`, a keyless one,
+  and one under a different `source_uri`. This is syllago's own policy: MOAT
+  alone installs an entry with no `signing_profile` as a Signed item, and a
+  new keyless item under a different `source_uri` without asking.
 - Sync verifies every item before applying any item. One failure applies
   nothing.
 - A change to the allowed-signers file is itself signed by a key it already
-  allows, and raises the file's sequence number. A first sight of a repository requires explicit End User
-  confirmation of its signers.
+  allows, and raises the file's sequence number. A first sight of a
+  repository requires explicit End User confirmation of its signers.
+- `syllago add` refuses an item whose frontmatter MOAT would refuse at
+  install: one that carries a key ACIF observation does not record, or a
+  scalar that reads differently under YAML 1.1 than under the YAML 1.2 core
+  schema.
 - A content type a provider can't take is skipped and reported. `--strict`
   turns skips into failures.
 - The loadout manifest is redesigned for v2. It lists Content Items by ACIF
@@ -222,15 +240,23 @@ The Rust workspace in the syllago repository, beside the Go code until v1.0:
   the right test.
 - **The primary seam is the CLI binary, end to end, across two simulated
   machines.** Each machine is an isolated home directory. A local bare git
-  repository stands in for the remote, a pinned capmon feed fixture stands in
-  for the live feed, and a test signing key and test trust root stand in for
-  production keys and Rekor. One test drives the full story: add, sign, push,
+  repository stands in for the remote, and a pinned capmon feed fixture
+  stands in for the live feed. A test signer plays the Registry Action: it
+  emits the manifest, its bundle and each item's registry Rekor entry under a
+  test trust root. A test author key stands in for production keys, and a
+  Rekor stand-in under the same root supports search by data hash, which
+  author-key lookup needs. One test drives the full story: add, sign, push,
   bootstrap on the second machine, verify, apply, check both tools' files,
   remove, and check that both tools are byte-identical to before.
 - **Failure paths go through the same seam:**
   - an item signed by an unlisted key
+  - an item from the sync repository with no `signing_profile`, a keyless
+    one, or one under a different `source_uri`, each refused with nothing
+    applied
   - an unsigned allow-list change, which sync holds for End User confirmation,
     applying nothing from that repository until then
+  - a changed allow list whose sequence is not greater, refused outright with
+    no confirmation offered
   - a tampered item body, which changes `body_hash`
   - an edited frontmatter grant, which changes only `metadata_hash`
   - a feed with a bad attestation
@@ -287,6 +313,8 @@ The Rust workspace in the syllago repository, beside the Go code until v1.0:
   becomes a claim shown to anyone verifying. Which `sk-` type to default to on
   Linux, macOS and Windows is the first implementation decision in the MOAT
   crate.
+- The sync repository's registry signatures are Fulcio certificates whose
+  SAN names the repository's owner and name, in a public log.
 - The v0.15 lexicon defines Install as symlink or copy. v2 always writes
   rendered files and records ownership, because providers rewrite their own
   files and symlinks break on Windows.
