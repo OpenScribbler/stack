@@ -74,15 +74,15 @@ machine without my confirmation, and syllago says why it stopped.
 30. As an End User, I want `--overwrite` to replace a drifted file deliberately, so that I can choose the Library's version when I mean to.
 31. As an End User, I want `syllago push` to commit and push my signed Library changes, so that other machines can get them.
 32. As an End User, I want `syllago bootstrap <repo-url>` on a fresh machine to clone, verify and apply in one command, so that a new machine or container is configured immediately.
-33. As an End User, I want bootstrap, the first time it sees a repository, to ask me to confirm its allowed signing keys, together with each loadout's name, sequence and target providers, and to pin both that list and the registry's signing profile, so that trust starts from my decision (TOFU).
+33. As an End User, I want bootstrap, the first time it sees a repository, to ask me to confirm its allowed signing keys, together with each loadout's name, sequence, target providers and pinned items, and to pin both that list and the registry's signing profile, so that trust starts from my decision (TOFU).
 34. As an End User, I want `syllago sync` to pull, verify and apply, so that keeping a machine current is one command.
 35. As an End User, I want sync to refuse an item whose signature doesn't verify and name the item and the reason, so that tampered content never reaches my tools.
 36. As an End User, I want sync to refuse an item signed by a key not in my allowed list, so that a stolen push token can't add a signer without my confirmation.
 37. As an End User, I want sync and bootstrap to refuse any item from my sync repository that isn't Dual-Attested under my author key from the `source_uri` pinned at bootstrap, so that a stolen push token can't add an item that only the Registry Action signed.
 38. As an End User, I want a change to the allowed-signers list itself to require a signature from a currently allowed key and a higher sequence number, so that an attacker can't add their own key with a plain push or replay an old change to restore a removed key.
-39. As an End User, I want each loadout in my sync repository signed with my author key, over the providers it targets, the `attestation_hash` of each item it names, and a sequence number, so that a stolen push token can't point it at other providers or at an older signed version of an item, or roll my machine back past the loadout it last accepted. A machine's first sight of a loadout is confirmed by me at bootstrap, and with no freshness signal a token holder can still hold a machine at a stale loadout newer than its record until it syncs from a current repository.
+39. As an End User, I want each loadout in my sync repository signed with my author key, over the providers it targets, the `attestation_hash` of each item it names, and a sequence number, so that a stolen push token can't point it at other providers or at an older signed version of an item, or roll my machine back past the version it last accepted, once I have activated that loadout on the machine. My confirmation at first activation can't tell an older signed version from the current one, and with no freshness signal a token holder can still hold a machine at a stale version newer than its record until it syncs from a current repository.
 40. As an End User, I want sync to refuse a loadout whose signature doesn't verify, whose signer isn't in my allowed list, or whose manifest changed without a sequence greater than the one my machine last accepted for it, and name the loadout and the reason, so that an edited or replayed loadout never applies.
-41. As an End User, I want sync to apply nothing when any item fails verification, so that a partly trusted update never lands.
+41. As an End User, I want sync to apply nothing when any item or loadout fails verification, so that a partly trusted update never lands.
 42. As an End User, I want every command to support `--json`, so that I can script it and check results in CI.
 43. As an End User, I want every error to name what failed, why, and what to do next, so that I can fix problems without reading source code.
 44. As an End User, I want the skeleton to work on Linux, macOS and native Windows, so that every machine I own is covered.
@@ -156,6 +156,11 @@ machine without my confirmation, and syllago says why it stopped.
 
   The profile ships with test vectors TV-AK-01 to TV-AK-12. MOAT's lexicon
   gains a key-fingerprint form of Signing Identity.
+- **MOAT Author-Key messages outside the profile** (editorial, lands
+  separately before the loadout code). The Author-Key Profile defines two
+  kinds of message, and an Author Key MAY sign other messages outside the
+  profile when each begins with its own domain-separator line. Syllago's
+  signed loadout is one.
 - **MOAT signer subject format** (the same PR). The CI profile's subject is
   the Fulcio certificate's SAN URI, whatever Fulcio's issuer configuration
   derives it from. The spec and the npm sub-spec now agree.
@@ -243,63 +248,80 @@ The Rust workspace in the syllago repository, beside the Go code until v1.0:
   pin, so an item reverted to an older signed version is refused as tampered.
 - A loadout manifest is signed with the author key, on the same pattern as an
   allowed-signers list change:
-  - The manifest carries a `sequence`, a decimal integer from 0 to 2^53−1.
-    Syllago raises it by one each time it edits the loadout, and it re-signs
+  - A loadout's name is its manifest's file name without the extension. A
+    name is one or more of lowercase `a`–`z`, `0`–`9` and `-`, so it holds no
+    LF and two names never differ only by case. Sync refuses, as malformed, a
+    manifest whose name breaks that grammar, whose `name` field, if it has
+    one, differs from its file name, or that shares its name with another
+    manifest.
+  - The manifest carries a `sequence` from 0 to 2^53−1, written in canonical
+    decimal: no sign and no leading zeros. The field and the signed message
+    use the same form, and any other form is refused as malformed. Syllago
+    raises the sequence by one each time it edits the loadout, and it re-signs
     every loadout that pins an item when that item changes. A new loadout
     starts at 0, or one above the highest sequence the authoring machine has
-    recorded or finds in the repository's git history for that name, so a
-    loadout recreated after a delete is not refused on machines that saw the
-    old one.
+    recorded for that name or finds in the repository's git history. History
+    counts only manifests whose signature verifies under a currently trusted
+    key for that `source_uri` and name, so an unsigned manifest pushed with a
+    huge sequence cannot block the name.
   - The author key signs the loadout message: `syllago-loadout-v1` LF, the
-    sync repository's `source_uri`, LF, the loadout name, LF, the sequence in
-    decimal, LF, the manifest digest, LF. The manifest digest is `sha256:` plus
-    the lowercase hex SHA-256 of the manifest bytes with a leading byte-order
-    mark removed and each CRLF and lone CR replaced by LF, the canonical text
-    MOAT's list digest uses. The `source_uri` stops a loadout signed for one
-    repository from being replayed in another, and the name stops a signed
-    loadout from being copied over another loadout.
+    sync repository's `source_uri`, LF, the loadout name, LF, the sequence,
+    LF, the manifest digest, LF. The manifest digest is `sha256:` plus the
+    lowercase hex SHA-256 of the manifest's canonical text: its bytes with a
+    leading byte-order mark removed and each CRLF and lone CR replaced by LF,
+    as MOAT's list digest defines. The client parses that canonical text, the
+    bytes it hashed, never the raw file. The `source_uri` stops a loadout
+    signed for one repository from being replayed in another, and the name
+    stops a signed loadout from being copied over another loadout.
   - The signature uses MOAT's author-key signature scheme: SSHSIG, namespace
-    `file`, SHA-512, the same key types and the same checks. MOAT's
-    Author-Key Profile defines two message kinds, and its domain-separation
-    rule already anticipates the same key signing other files under namespace
-    `file`. The loadout message is a syllago-defined third kind with its own
-    separator line, which that rule keeps from verifying as either MOAT kind,
-    and MOAT's kinds never verify as a loadout. No MOAT spec change is
-    needed.
+    `file`, SHA-512, the same key types and the same checks. The loadout
+    message is a syllago-defined kind outside MOAT's profile, with its own
+    separator line, so it never verifies as a MOAT item or list change, and
+    neither verifies as a loadout. MOAT's clarification that an Author Key may
+    sign such messages lands first (above).
   - The armored signature is committed beside the manifest, at the manifest's
     path plus `.sig`. It gets no Rekor entry, because the client verifies it
     from the repository against the trusted list and never looks it up by
     hash. The loadout is not a MOAT item.
-  - The client records, per `source_uri` and loadout name, the accepted
-    sequence and manifest digest, beside the trusted allowed-signers list. A
-    manifest whose digest equals the record is unchanged. Sync refuses a
-    loadout whose signature is missing or does not verify
+  - The client keeps a record per `source_uri` and loadout name: the accepted
+    sequence, the manifest digest, and whether the loadout is active on this
+    machine. The record lives in a syllago-owned file, not in MOAT's lockfile
+    `allowed_signers` map, and is written only after the apply that uses it
+    commits. A manifest whose digest equals the record is unchanged. Sync
+    refuses a loadout whose `.sig` is missing or does not verify
     (`signature_invalid`), whose signer is not in the trusted list
-    (`signer_not_allowed`), or that changed without a sequence greater than
-    the recorded one (`sequence_not_greater`). The refusal names the loadout
-    and the reason, and offers no confirmation.
-  - The sequence record is the rollback guard, and first sight is confirmed
-    by the End User. Bootstrap shows each loadout's name, sequence and target
-    providers beside the allowed-signers list, and the End User confirms them
-    together. A loadout an already-bootstrapped machine first sees later, with
-    no record, is accepted when a trusted key signed it, and the sync output
-    shows its name, sequence and providers.
-  - The bound: a push-token holder cannot roll a machine back past the
-    loadout it last accepted. There is no freshness signal, so the holder can
-    keep a machine at a stale loadout whose sequence is still above the
-    machine's record until the machine syncs from a current repository.
+    (`signer_not_allowed`), or whose manifest changed without a sequence
+    greater than the recorded one (`sequence_not_greater`). The refusal names
+    the loadout and the reason and offers no confirmation. A
+    `sequence_not_greater` refusal gives two recovery paths: re-sign the
+    loadout at a higher sequence, when the author recreated it from a machine
+    that could not see the higher sequence, or remove the repository's
+    trusted list after a key is stolen, as MOAT's list refusal does.
+  - Sync applies only the loadouts this machine has activated. A loadout
+    with no record, or one recorded as inactive, is reported by sync and never
+    applied, even when its digest equals the record. The End User activates a
+    loadout through bootstrap's confirmation or an explicit
+    `syllago apply <loadout>`. Either one shows the loadout's name, sequence,
+    providers and each item it pins, and a non-interactive run exits non-zero
+    instead of activating. `syllago remove` deactivates the loadout and keeps
+    its record, so a restored copy of a removed loadout is reported, not
+    applied.
+  - The bound: a push-token holder cannot point an activated loadout at
+    other providers or older pins, or roll it back past the version the
+    machine last accepted. First activation rests on the End User's
+    confirmation, which cannot tell an older signed version from the current
+    one. There is no freshness signal, so the holder can keep a machine at a
+    stale version whose sequence is still above the machine's record until
+    the machine syncs from a current repository.
   - Verification uses the current trusted list, so once a signed list change
     removes a key, every loadout that key signed is refused until a trusted
     key re-signs it.
-  - Removing a repository's trusted list also removes its loadout records, so
-    the next sync is a first sight for both. A `sequence_not_greater` refusal
-    names that as the recovery path after a key is stolen, as MOAT's list
-    refusal does.
+  - Removing a repository's trusted list also clears its loadout records, so
+    the next sync is a first sight for the list and for every loadout, and no
+    loadout applies until the End User activates it again.
   - A recorded loadout that disappears from the repository is reported and
     stays applied. Only `syllago remove` takes a loadout off a machine, so
     deleting a loadout file with a stolen push token removes nothing.
-    `syllago remove` keeps the loadout's sequence record, so old versions of a
-    removed loadout can't be replayed later.
   - Two machines that edit one loadout at once both sign the same next
     sequence. Git reports the conflict on push, and the second edit is
     re-signed at the following sequence after a pull.
@@ -334,8 +356,14 @@ The Rust workspace in the syllago repository, beside the Go code until v1.0:
     refused with the loadout named and nothing applied
   - an item reverted to an older signed version than the loadout pins,
     refused with nothing applied
+  - a signed loadout copied to another name, one copied from another
+    `source_uri`, and one with its `.sig` missing, each refused
+  - a loadout whose signing key a signed list change removed, refused until
+    re-signed
   - key C added by a signed list change and a loadout signed with C in the
     same push, which syncs and applies
+  - a loadout first seen after bootstrap, reported by sync and not applied
+  - a removed loadout restored byte for byte, reported and not applied
   - a tampered item body, which changes `body_hash`
   - an edited frontmatter grant, which changes only `metadata_hash`
   - a feed with a bad attestation
@@ -344,7 +372,8 @@ The Rust workspace in the syllago repository, beside the Go code until v1.0:
 - **The ACIF crate is tested at its existing seam:** the ACIF conformance
   runner and vectors for skills and rules. No new seam.
 - **The MOAT crate is tested at MOAT's existing vector seam,** extended with
-  the author-key profile's new vectors.
+  the author-key profile's new vectors. A small published vector set for the
+  `syllago-loadout-v1` message is owed with the implementation.
 - **Provider adapters are tested by golden fixtures pinned to a tool version.**
   This is the one new seam below the CLI, because it is how a capmon change
   becomes a reviewable diff.

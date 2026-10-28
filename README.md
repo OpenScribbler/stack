@@ -112,15 +112,17 @@ edit. Each machine records the last sequence it accepted for each loadout.
 Sync refuses a loadout whose signature fails, whose signer isn't in the
 trusted allowed-signers list, or whose manifest changed without a sequence
 greater than the one recorded, and names the loadout and the reason.
-Bootstrap shows each loadout's name, sequence and providers beside the
-allowed signers, and the user confirms them together. A stolen push token then
-can't point a loadout at other providers or at an older signed version of an
-item, and can't roll a machine back past the loadout it last accepted. The
-bound is that no freshness signal exists: a token holder can hold a machine
-at a stale loadout newer than its record until it syncs from a current
-repository. The cost is that
-every machine that edits a loadout needs the author key, and an `sk-` key
-asks for a touch on each edit.
+Sync applies only the loadouts a machine has activated. The user activates a
+loadout at bootstrap or with an explicit apply, after seeing its name,
+sequence, providers and pinned items, and `syllago remove` deactivates it.
+For an activated loadout, a stolen push token can't point it at other
+providers or at an older signed version of an item, or roll it back past the
+version the machine last accepted. Two limits remain. First activation rests
+on the user's confirmation, which can't tell an older signed version from
+the current one. And with no freshness signal, a token holder can hold a
+machine at a stale version newer than its record until it syncs from a
+current repository. The cost is that every machine that edits a loadout needs
+the author key, and an `sk-` key asks for a touch on each edit.
 
 ### Apply
 
@@ -185,8 +187,10 @@ a change in any project that breaks the stack fails there.
 
 ### Spec work the skeleton needs
 
-All of it has landed. [`specs/walking-skeleton.md`](specs/walking-skeleton.md)
-records what each change settled.
+All of it has landed except a MOAT clarification that an Author Key may sign
+messages outside the profile, which signed loadouts need.
+[`specs/walking-skeleton.md`](specs/walking-skeleton.md) records what each
+change settled.
 
 - ACIF: settle the two install conflicts the apply engine depends on. Hook
   contributions are keyed by item, not by event wiring, and a blocking hook is
