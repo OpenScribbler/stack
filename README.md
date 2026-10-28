@@ -105,6 +105,23 @@ key, the apply is refused and names both. User-wide loadouts live in the sync
 repository. A project loadout is a file committed in that project's own
 repository.
 
+A loadout in the sync repository is signed with the author key, like the items
+it names. The signature covers the providers it targets, the
+`attestation_hash` of each item, and a sequence number that rises with every
+edit. Each machine records the last sequence it accepted for each loadout.
+Sync refuses a loadout whose signature fails, whose signer isn't in the
+trusted allowed-signers list, or whose manifest changed without a sequence
+greater than the one recorded, and names the loadout and the reason.
+Bootstrap shows each loadout's name, sequence and providers beside the
+allowed signers, and the user confirms them together. A stolen push token then
+can't point a loadout at other providers or at an older signed version of an
+item, and can't roll a machine back past the loadout it last accepted. The
+bound is that no freshness signal exists: a token holder can hold a machine
+at a stale loadout newer than its record until it syncs from a current
+repository. The cost is that
+every machine that edits a loadout needs the author key, and an `sk-` key
+asks for a touch on each edit.
+
 ### Apply
 
 Apply is all-or-nothing across every provider in one run: snapshot, apply
